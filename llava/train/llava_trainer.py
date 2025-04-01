@@ -252,4 +252,6 @@ class LLaVATrainer(Trainer):
         if getattr(self.args, 'tune_mm_mlp_adapter', False):
             pass
         else:
+            if hasattr(self.model, 'generation_config'):
+                self.model.generation_config.do_sample = True
             super(LLaVATrainer, self)._save(output_dir, state_dict)

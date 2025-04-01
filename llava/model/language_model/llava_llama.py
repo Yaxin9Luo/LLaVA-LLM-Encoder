@@ -115,6 +115,9 @@ class LlavaLlamaForCausalLM(LlamaForCausalLM, LlavaMetaForCausalLM):
             raise NotImplementedError("`inputs_embeds` is not supported")
 
         if images is not None:
+            # Ensure images are on the same device as the model
+            device = inputs.device if inputs is not None else next(self.parameters()).device
+            images = images.to(device)
             (
                 inputs,
                 position_ids,

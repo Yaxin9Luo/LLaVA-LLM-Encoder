@@ -57,6 +57,9 @@ class LlavaMetaModel:
 
         if self.get_vision_tower() is None:
             vision_tower = build_vision_tower(model_args)
+            # Ensure vision tower is on the same device as the model
+            device = next(self.parameters()).device if hasattr(self, 'parameters') else "cuda" if torch.cuda.is_available() else "cpu"
+            vision_tower = vision_tower.to(device)
 
             if fsdp is not None and len(fsdp) > 0:
                 self.vision_tower = [vision_tower]
@@ -68,6 +71,9 @@ class LlavaMetaModel:
             else:
                 vision_tower = self.vision_tower
             vision_tower.load_model()
+            # Ensure vision tower is on the same device as the model
+            device = next(self.parameters()).device if hasattr(self, 'parameters') else "cuda" if torch.cuda.is_available() else "cpu"
+            vision_tower = vision_tower.to(device)
 
         self.config.use_mm_proj = True
         self.config.mm_projector_type = getattr(model_args, 'mm_projector_type', 'linear')
@@ -139,6 +145,9 @@ class LlavaMetaForCausalLM(ABC):
 
     def encode_images(self, images):
         image_features = self.get_model().get_vision_tower()(images)
+        # Move image features to the same device as the mm_projector
+        mm_projector_device = next(self.get_model().mm_projector.parameters()).device
+        image_features = image_features.to(mm_projector_device)
         image_features = self.get_model().mm_projector(image_features)
         return image_features
 
@@ -154,6 +163,9 @@ class LlavaMetaForCausalLM(ABC):
             if type(images) is list:
                 images = [x.unsqueeze(0) if x.ndim == 3 else x for x in images]
             concat_images = torch.cat([image for image in images], dim=0)
+            # Ensure images are on the correct device before encoding
+            device = self.device if hasattr(self, 'device') else next(self.get_model().parameters()).device
+            concat_images = concat_images.to(device)
             image_features = self.encode_images(concat_images)
             split_sizes = [image.shape[0] for image in images]
             image_features = torch.split(image_features, split_sizes, dim=0)
@@ -199,6 +211,9 @@ class LlavaMetaForCausalLM(ABC):
             else:
                 raise ValueError(f"Unexpected mm_patch_merge_type: {self.config.mm_patch_merge_type}")
         else:
+            # Ensure images are on the correct device before encoding
+            device = self.device if hasattr(self, 'device') else next(self.get_model().parameters()).device
+            images = images.to(device)
             image_features = self.encode_images(images)
 
         # TODO: image start / end is not implemented here to support pretraining.

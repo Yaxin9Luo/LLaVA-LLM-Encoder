@@ -37,14 +37,14 @@ class GPT2VisionTower(nn.Module):
         if self.is_loaded:
             print('{} is already loaded, `load_model` called again, skipping.'.format(self.vision_tower_name))
             return
-        print(f"Loading GPT2VisionTower from {self.vision_tower_name}")
+        print(f"Loading randomly initialized GPT2VisionTower with config from {self.vision_tower_name}")
         # Use CLIP's image processor for consistent preprocessing
         self.image_processor = AutoImageProcessor.from_pretrained("openai/clip-vit-base-patch16")
         
-        # Load GPT2 model
+        # Initialize a random GPT2 model using the configuration only
         self.gpt2_config = GPT2Config.from_pretrained(self.vision_tower_name)
-        self.vision_tower = GPT2Model.from_pretrained(self.vision_tower_name, device_map=device_map)
-        self.vision_tower.requires_grad_(False)
+        self.vision_tower = GPT2Model(config=self.gpt2_config)  # Random initialization instead of pretrained
+        self.vision_tower.requires_grad_(True)  # Allow training of the randomly initialized model
         
         # Add patch embedding layer to convert image patches to embeddings
         self.patch_embed = nn.Conv2d(
